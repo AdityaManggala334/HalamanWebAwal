@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Data Sensor — SM Irigasi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: "Segoe UI", Arial, sans-serif; }
+        .chart-bar { transition: height 0.4s ease; transform-origin: bottom; }
+        select:focus, input:focus { outline:none; border-color:#2e7d32; box-shadow:0 0 0 3px rgba(46,125,50,0.2); }
+        thead tr { background-color:#2e7d32; color:#fff; }
+        tbody tr:nth-child(even) { background-color:#f1f8e9; }
+        tbody tr:hover { background-color:#e8f5e9; }
+        .status-normal { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+        .status-rendah { background:#fff3cd; color:#7c4a00; border:1px solid #fcd34d; }
+        .status-tinggi { background:#dbeafe; color:#1e3a8a; border:1px solid #93c5fd; }
+        .status-kritis { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col" style="background-color:#f1f8e9;">
+
+    <nav style="background-color:#2e7d32;" class="shadow-md">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+            <a href="index.html" class="text-white font-bold text-xl">💧 SM Irigasi</a>
+            <div class="flex gap-4 text-sm" style="color:#c8e6c9;">
+                <a href="index.html#monitoring" class="hover:text-white transition">Monitoring</a>
+                <a href="peta-sensor.html" class="hover:text-white transition">Peta Sensor</a>
+                <a href="riwayat.html" class="text-white font-semibold underline">Riwayat</a>
+                <a href="login.html" class="hover:text-white transition">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto w-full px-4 py-8 flex-1">
+
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold" style="color:#1b5e20;">📋 Riwayat Data Sensor</h1>
+            <p class="text-gray-600 text-sm mt-1">Rekaman historis pembacaan sensor dalam 24 jam terakhir</p>
+        </div>
+
+
+        <div class="bg-white rounded-2xl shadow p-4 mb-6 flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Sensor</label>
+                <select id="filter-sensor" onchange="filterData()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    <option value="semua">Semua Sensor</option>
+                    <option value="SNS-01">SNS-01 — Saluran Induk Ngidul</option>
+                    <option value="SNS-02">SNS-02 — Percabangan Blok A</option>
+                    <option value="SNS-03">SNS-03 — Saluran Blok B</option>
+                    <option value="SNS-04">SNS-04 — Bak Penampungan C1</option>
+                    <option value="SNS-05">SNS-05 — Saluran Ngalor D</option>
+                    <option value="SNS-06">SNS-06 — Saluran Ngetan E</option>
+                    <option value="SNS-07">SNS-08 — Saluran Petak 12</option>
+                    <option value="SNS-08">SNS-07 — Embung Ngulon</option>
+                    
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Status</label>
+                <select id="filter-status" onchange="filterData()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    <option value="semua">Semua Status</option>
+                    <option value="normal">Normal</option>
+                    <option value="rendah">Rendah</option>
+                    <option value="tinggi">Tinggi</option>
+                    <option value="kritis">Kritis</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Cari</label>
+                <input type="text" id="filter-cari" oninput="filterData()" placeholder="Cari lokasi..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <button onclick="eksporCSV()" class="text-white text-sm px-4 py-2 rounded-lg font-semibold transition ml-auto"
+                style="background-color:#ffc107; color:#333;" onmouseover="this.style.backgroundColor='#e6ac00'" onmouseout="this.style.backgroundColor='#ffc107'">
+                ⬇️ Ekspor CSV
+            </button>
+        </div>
+
+        
+        <div class="bg-white rounded-2xl shadow-lg p-5 mb-6">
+            <h2 class="text-sm font-bold mb-3" style="color:#2e7d32;">📈 Tren Debit Air — 8 Jam Terakhir</h2>
+            <div class="flex items-end gap-2 justify-around" style="height:120px;" id="grafik-container">
+                <!-- Diisi JS -->
+            </div>
+            <div class="flex justify-around mt-1" id="grafik-label">
+                <!-- Diisi JS -->
+            </div>
+        </div>
+
+        <!-- TABEL RIWAYAT -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 flex items-center justify-between border-b" style="background-color:#f1f8e9;">
+                <span class="text-sm font-semibold" style="color:#2e7d32;">📄 Log Data Sensor</span>
+                <span class="text-xs text-gray-500">Menampilkan <span id="jml-tampil">—</span> dari <span id="jml-total">—</span> catatan</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-2.5 text-left text-xs font-semibold">#</th>
+                            <th class="px-3 py-2.5 text-left text-xs font-semibold">Waktu</th>
+                            <th class="px-3 py-2.5 text-left text-xs font-semibold">ID Sensor</th>
+                            <th class="px-3 py-2.5 text-left text-xs font-semibold">Lokasi</th>
+                            <th class="px-3 py-2.5 text-right text-xs font-semibold">Debit (m³/s)</th>
+                            <th class="px-3 py-2.5 text-right text-xs font-semibold">TMA (cm)</th>
+                            <th class="px-3 py-2.5 text-right text-xs font-semibold">Suhu (°C)</th>
+                            <th class="px-3 py-2.5 text-right text-xs font-semibold">Lembap (%)</th>
+                            <th class="px-3 py-2.5 text-center text-xs font-semibold">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-riwayat">
+                        <tr><td colspan="9" class="text-center py-8 text-gray-400">Memuat data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="text-center text-xs py-3 text-green-100 mt-4" style="background-color:#1b5e20;">
+        © 2026 SM Irigasi — Universitas Sebelas Maret · Sistem Monitoring Irigasi Sawah
+    </footer>
+
+    <script>
+        var sensorBase = [
+            { id:"SNS-01", lokasi:"Saluran Induk Ngidul", debit:12.4, tma:42, suhu:26.8, lembap:68 },
+            { id:"SNS-02", lokasi:"Percabangan Blok A", debit:8.7,  tma:35, suhu:27.1, lembap:72 },
+            { id:"SNS-03", lokasi:"Saluran Blok B", debit:3.2,  tma:18, suhu:28.3, lembap:45 },
+            { id:"SNS-04", lokasi:"Bak Penampungan C", debit:18.9, tma:71, suhu:26.2, lembap:80 },
+            { id:"SNS-05", lokasi:"Saluran Ngalor D", debit:6.5,  tma:28, suhu:27.8, lembap:63 },
+            { id:"SNS-06", lokasi:"Saluran Ngetan E", debit:1.1,  tma:10, suhu:29.0, lembap:31 },
+            { id:"SNS-07", lokasi:"Saluran Petak 12", debit:9.3,  tma:38, suhu:26.5, lembap:70 },
+            { id:"SNS-08", lokasi:"Embung Ngulon", debit:7.8,  tma:32, suhu:27.4, lembap:66 }
+        ];
+
+        function getStatus(tma) {
+            if (tma < 15) return 'kritis';
+            if (tma < 25) return 'rendah';
+            if (tma > 65) return 'tinggi';
+            return 'normal';
+        }
+
+        // Generate data riwayat: 24 rekaman (8 sensor x 3 waktu berbeda)
+        var riwayatData = [];
+        var now = new Date();
+        for (var h = 23; h >= 0; h--) {
+            var waktu = new Date(now.getTime() - h * 60 * 60000);
+            var wStr = String(waktu.getHours()).padStart(2,'0') + ':' +
+                       String(waktu.getMinutes()).padStart(2,'0');
+            // Hanya tiap sensor tertentu per jam untuk variasi
+            var idx = h % sensorBase.length;
+            var s = sensorBase[idx];
+            var varDebit = s.debit + (Math.random()-0.5)*3;
+            var varTma   = Math.max(5, s.tma + Math.round((Math.random()-0.5)*10));
+            var varLembap= Math.min(100,Math.max(10,s.lembap + Math.round((Math.random()-0.5)*8)));
+            riwayatData.push({
+                waktu: wStr,
+                id: s.id,
+                lokasi: s.lokasi,
+                debit: varDebit,
+                tma: varTma,
+                suhu: s.suhu + (Math.random()-0.5)*1.5,
+                lembap: varLembap,
+                status: getStatus(varTma)
+            });
+        }
+        // Tambah semua sensor untuk jam terakhir
+        sensorBase.forEach(function(s) {
+            var varTma = Math.max(5, s.tma + Math.round((Math.random()-0.5)*5));
+            riwayatData.unshift({
+                waktu: String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'),
+                id: s.id,
+                lokasi: s.lokasi,
+                debit: s.debit + (Math.random()-0.5),
+                tma: varTma,
+                suhu: s.suhu,
+                lembap: s.lembap,
+                status: getStatus(varTma)
+            });
+        });
+
+        function filterData() {
+            var fSensor = document.getElementById('filter-sensor').value;
+            var fStatus = document.getElementById('filter-status').value;
+            var fCari   = document.getElementById('filter-cari').value.toLowerCase();
+            return riwayatData.filter(function(r) {
+                return (fSensor==='semua' || r.id===fSensor) &&
+                       (fStatus==='semua' || r.status===fStatus) &&
+                       (!fCari || r.lokasi.toLowerCase().includes(fCari) || r.id.toLowerCase().includes(fCari));
+            });
+        }
+
+        var labelSt = { normal:'Normal', rendah:'Rendah', tinggi:'Tinggi', kritis:'Kritis !' };
+
+        function renderTabel() {
+            var data = filterData();
+            var html = '';
+            data.forEach(function(r, i) {
+                html += '<tr>';
+                html += '<td class="px-3 py-2 text-gray-400">' + (i+1) + '</td>';
+                html += '<td class="px-3 py-2 font-mono text-xs text-gray-700">' + r.waktu + '</td>';
+                html += '<td class="px-3 py-2 font-semibold" style="color:#2e7d32;">' + r.id + '</td>';
+                html += '<td class="px-3 py-2 text-gray-700">' + r.lokasi + '</td>';
+                html += '<td class="px-3 py-2 text-right font-mono">' + r.debit.toFixed(2) + '</td>';
+                html += '<td class="px-3 py-2 text-right font-mono">' + r.tma + '</td>';
+                html += '<td class="px-3 py-2 text-right font-mono">' + r.suhu.toFixed(1) + '</td>';
+                html += '<td class="px-3 py-2 text-right font-mono">' + r.lembap + '</td>';
+                html += '<td class="px-3 py-2 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-semibold status-' + r.status + '">' + labelSt[r.status] + '</span></td>';
+                html += '</tr>';
+            });
+            if (data.length === 0) html = '<tr><td colspan="9" class="text-center py-8 text-gray-400">Tidak ada data yang cocok dengan filter.</td></tr>';
+            document.getElementById('tbody-riwayat').innerHTML = html;
+            document.getElementById('jml-tampil').textContent = data.length;
+            document.getElementById('jml-total').textContent  = riwayatData.length;
+        }
+
+        function renderGrafik() {
+            // Ambil data SNS-01 untuk 8 jam terakhir
+            var dataSNS1 = riwayatData.filter(function(r){ return r.id==='SNS-01'; }).slice(0,8).reverse();
+            var maxDebit = Math.max.apply(null, dataSNS1.map(function(r){ return r.debit; }));
+            var container = document.getElementById('grafik-container');
+            var labelDiv  = document.getElementById('grafik-label');
+            container.innerHTML = '';
+            labelDiv.innerHTML  = '';
+
+            dataSNS1.forEach(function(r, i) {
+                var pct = Math.max(10, (r.debit / (maxDebit+2)) * 100);
+                var warna = r.status==='kritis'?'#c62828': r.status==='rendah'?'#f57c00': r.status==='tinggi'?'#1565c0':'#2e7d32';
+                var bar = document.createElement('div');
+                bar.className = 'chart-bar rounded-t-md flex-1 flex items-end justify-center';
+                bar.style.height = pct + '%';
+                bar.style.backgroundColor = warna;
+                bar.title = r.debit.toFixed(2) + ' m³/s — ' + r.waktu;
+                bar.innerHTML = '<span style="font-size:9px;color:white;margin-bottom:3px;">' + r.debit.toFixed(1) + '</span>';
+                container.appendChild(bar);
+
+                var lbl = document.createElement('div');
+                lbl.style.cssText = 'flex:1;text-align:center;font-size:10px;color:#888;';
+                lbl.textContent = r.waktu;
+                labelDiv.appendChild(lbl);
+            });
+        }
+
+        function eksporCSV() {
+            var data = filterData();
+            var csv  = 'Waktu,ID Sensor,Lokasi,Debit (m3/s),TMA (cm),Suhu (C),Lembap (%),Status\n';
+            data.forEach(function(r) {
+                csv += [r.waktu, r.id, '"'+r.lokasi+'"', r.debit.toFixed(2), r.tma, r.suhu.toFixed(1), r.lembap, r.status].join(',') + '\n';
+            });
+            var blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'riwayat-sensor-' + new Date().toISOString().slice(0,10) + '.csv';
+            a.click();
+        }
+
+        renderTabel();
+        renderGrafik();
+
+        // Event listener filter live
+        document.getElementById('filter-sensor').addEventListener('change', renderTabel);
+        document.getElementById('filter-status').addEventListener('change', renderTabel);
+        document.getElementById('filter-cari').addEventListener('input', renderTabel);
+
+        // Auto-update setiap 8 detik (simulasi data baru masuk)
+        setInterval(function() {
+            var s = sensorBase[Math.floor(Math.random()*sensorBase.length)];
+            var varTma = Math.max(5, s.tma + Math.round((Math.random()-0.5)*8));
+            var now2 = new Date();
+            riwayatData.unshift({
+                waktu: String(now2.getHours()).padStart(2,'0')+':'+String(now2.getMinutes()).padStart(2,'0')+':'+String(now2.getSeconds()).padStart(2,'0'),
+                id: s.id, lokasi: s.lokasi,
+                debit: s.debit+(Math.random()-0.5),
+                tma: varTma, suhu: s.suhu, lembap: s.lembap,
+                status: getStatus(varTma)
+            });
+            if (riwayatData.length > 200) riwayatData.pop();
+            renderTabel();
+            renderGrafik();
+        }, 8000);
+    </script>
+</body>
+</html>
