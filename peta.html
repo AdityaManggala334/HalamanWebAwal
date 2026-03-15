@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peta Lokasi Sensor — SiMo Irigasi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: "Segoe UI", Arial, sans-serif; }
+        .peta-area { background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 40%, #81c784 70%, #b2dfdb 100%); }
+        .sensor-titik { cursor: pointer; transition: transform 0.2s; }
+        .sensor-titik:hover { transform: scale(1.15); }
+        .badge-normal  { background:#2e7d32; color:#fff; }
+        .badge-rendah  { background:#f57c00; color:#fff; }
+        .badge-tinggi  { background:#1565c0; color:#fff; }
+        .badge-kritis  { background:#c62828; color:#fff; }
+        .tooltip {
+            display: none; position: absolute; background: #1b5e20; color: #fff;
+            padding: 8px 12px; border-radius: 8px; font-size: 12px; white-space: nowrap;
+            z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none;
+        }
+        .sensor-titik:hover .tooltip { display: block; }
+        .saluran-line { stroke: #1565c0; stroke-width: 3; fill: none; stroke-dasharray: 6,3; opacity: 0.6; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col" style="background-color:#f1f8e9;">
+
+    <nav style="background-color:#2e7d32;" class="shadow-md">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+            <a href="index.html" class="text-white font-bold text-xl">💧 SM Irigasi</a>
+            <div class="flex gap-4 text-sm" style="color:#c8e6c9;">
+                <a href="index.html#monitoring" class="hover:text-white transition">Monitoring</a>
+                <a href="peta-sensor.html" class="text-white font-semibold underline">Peta Sensor</a>
+                <a href="riwayat.html" class="hover:text-white transition">Riwayat</a>
+                <a href="login.html" class="hover:text-white transition">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto w-full px-4 py-8 flex-1">
+
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold" style="color:#1b5e20;">📍 Peta Lokasi Sensor</h1>
+            <p class="text-gray-600 text-sm mt-1">Peta visual jaringan irigasi sawah beserta posisi sensor aktif di lapangan</p>
+        </div>
+
+        <!-- STATISTIK RINGKASAN -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl p-4 shadow text-center border-l-4" style="border-color:#2e7d32;">
+                <p class="text-2xl font-bold" style="color:#2e7d32;" id="cnt-normal">0</p>
+                <p class="text-xs text-gray-500 mt-1">Sensor Normal</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow text-center border-l-4" style="border-color:#f57c00;">
+                <p class="text-2xl font-bold" style="color:#f57c00;" id="cnt-rendah">0</p>
+                <p class="text-xs text-gray-500 mt-1">Debit Rendah</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow text-center border-l-4" style="border-color:#1565c0;">
+                <p class="text-2xl font-bold" style="color:#1565c0;" id="cnt-tinggi">0</p>
+                <p class="text-xs text-gray-500 mt-1">Debit Tinggi</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow text-center border-l-4" style="border-color:#c62828;">
+                <p class="text-2xl font-bold text-red-700" id="cnt-kritis">0</p>
+                <p class="text-xs text-gray-500 mt-1">Status Kritis</p>
+            </div>
+        </div>
+
+        
+        <div class="flex flex-col lg:flex-row gap-6">
+
+            
+            <div class="flex-1 bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="px-4 py-3 border-b flex items-center justify-between" style="background-color:#f1f8e9;">
+                    <span class="text-sm font-semibold" style="color:#2e7d32;">🗺️ Denah Jaringan Irigasi</span>
+                    <span class="text-xs text-gray-500" id="waktu-peta">--:--:--</span>
+                </div>
+                <div class="peta-area p-4 relative" style="min-height:380px;">
+                    <svg viewBox="0 0 600 380" class="w-full h-full" style="max-height:400px;">
+
+                        <!-- Grid latar -->
+                        <defs>
+                            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/>
+                            </pattern>
+                        </defs>
+                        <rect width="600" height="380" fill="url(#grid)"/>
+
+                        <!-- Area sawah (kotak hijau) -->
+                        <rect x="80"  y="60"  width="120" height="80"  rx="4" fill="rgba(76,175,80,0.3)" stroke="#388e3c" stroke-width="1.5"/>
+                        <text x="140" y="105" text-anchor="middle" font-size="10" fill="#1b5e20" font-weight="bold">PETAK A</text>
+                        <rect x="220" y="60"  width="120" height="80"  rx="4" fill="rgba(76,175,80,0.3)" stroke="#388e3c" stroke-width="1.5"/>
+                        <text x="280" y="105" text-anchor="middle" font-size="10" fill="#1b5e20" font-weight="bold">PETAK B</text>
+                        <rect x="360" y="60"  width="120" height="80"  rx="4" fill="rgba(76,175,80,0.3)" stroke="#388e3c" stroke-width="1.5"/>
+                        <text x="420" y="105" text-anchor="middle" font-size="10" fill="#1b5e20" font-weight="bold">PETAK C</text>
+                        <rect x="80"  y="220" width="120" height="80"  rx="4" fill="rgba(76,175,80,0.3)" stroke="#388e3c" stroke-width="1.5"/>
+                        <text x="140" y="265" text-anchor="middle" font-size="10" fill="#1b5e20" font-weight="bold">PETAK D</text>
+                        <rect x="220" y="220" width="120" height="80"  rx="4" fill="rgba(76,175,80,0.3)" stroke="#388e3c" stroke-width="1.5"/>
+                        <text x="280" y="265" text-anchor="middle" font-size="10" fill="#1b5e20" font-weight="bold">PETAK E</text>
+                        <rect x="360" y="220" width="120" height="80"  rx="4" fill="rgba(76,175,80,0.3)" stroke="#388e3c" stroke-width="1.5"/>
+                        <text x="420" y="265" text-anchor="middle" font-size="10" fill="#1b5e20" font-weight="bold">PETAK F</text>
+
+                        <!-- Saluran utama (horizontal) -->
+                        <line x1="40" y1="30" x2="560" y2="30" class="saluran-line" stroke="#1565c0" stroke-width="5" stroke-dasharray="0"/>
+                        <text x="300" y="22" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="bold">SALURAN INDUK UTAMA</text>
+
+                        
+                        <line x1="140" y1="30" x2="140" y2="60" class="saluran-line"/>
+                        <line x1="280" y1="30" x2="280" y2="60" class="saluran-line"/>
+                        <line x1="420" y1="30" x2="420" y2="60" class="saluran-line"/>
+                        <line x1="140" y1="140" x2="140" y2="220" class="saluran-line"/>
+                        <line x1="280" y1="140" x2="280" y2="220" class="saluran-line"/>
+                        <line x1="420" y1="140" x2="420" y2="220" class="saluran-line"/>
+
+                        
+                        <line x1="40" y1="175" x2="560" y2="175" class="saluran-line"/>
+                        <text x="25" y="179" font-size="8" fill="#1565c0">SEKUNDER</text>
+
+                        <!-- Embung -->
+                        <ellipse cx="530" cy="300" rx="35" ry="22" fill="rgba(21,101,192,0.25)" stroke="#1565c0" stroke-width="2"/>
+                        <text x="530" y="304" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="bold">EMBUNG</text>
+
+                        <!-- SENSOR SNS-01 : Saluran Induk zNgiul -->
+                        <g class="sensor-titik" onclick="pilihSensor('SNS-01')">
+                            <circle cx="70" cy="30" r="12" id="dot-SNS-01" fill="#2e7d32" stroke="#fff" stroke-width="2"/>
+                            <text x="70" y="34" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">S1</text>
+                        </g>
+                        <!-- SENSOR SNS-02 : Percabangan Blok A -->
+                        <g class="sensor-titik" onclick="pilihSensor('SNS-02')">
+                            <circle cx="140" cy="52" r="12" id="dot-SNS-02" fill="#2e7d32" stroke="#fff" stroke-width="2"/>
+                            <text x="140" y="56" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">S2</text>
+                        </g>
+                        <!-- SENSOR SNS-03 : Saluran Blok B -->
+                        <g class="sensor-titik" onclick="pilihSensor('SNS-03')">
+                            <circle cx="280" cy="52" r="12" id="dot-SNS-03" fill="#f57c00" stroke="#fff" stroke-width="2"/>
+                            <text x="280" y="56" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">S3</text>
+                        </g>
+                        <!-- SENSOR SNS-04 : Bak Penampungan C -->
+                        <g class="sensor-titik" onclick="pilihSensor('SNS-04')">
+                            <circle cx="420" cy="52" r="12" id="dot-SNS-04" fill="#1565c0" stroke="#fff" stroke-width="2"/>
+                            <text x="420" y="56" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">S4</text>
+                        </g>
+                        <!-- SENSOR SNS-05 : Saluran Ngalor D -->
+                        <g class="sensor-titik" onclick="pilihSensor('SNS-05')">
+                            <circle cx="140" cy="175" r="12" id="dot-SNS-05" fill="#2e7d32" stroke="#fff" stroke-width="2"/>
+                            <text x="140" y="179" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">S5</text>
+                        </g>
+                        <!-- SENSOR SNS-06 : Saluran Ngetan E -->
+                        <g class="sensor-titik" onclick="pilihSensor('SNS-06')">
+                            <circle cx="280" cy="175" r="12" id="dot-SNS-06" fill="#c62828" stroke="#fff" stroke-width="2"/>
+                            <text x="280" y="179" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">S6</text>
+                        </g>
+                        <!-- SENSOR SNS-07 : Saluran petak 12 -->
+                        <g class="sensor-titik" onclick="pilihSensor('SNS-07')">
+                            <circle cx="530" cy="300" r="12" id="dot-SNS-07" fill="#2e7d32" stroke="#fff" stroke-width="2"/>
+                            <text x="530" y="304" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">S7</text>
+                        </g>
+                        <!-- SENSOR SNS-08 : Embung Ngulon -->
+                        <g class="sensor-titik" onclick="pilihSensor('SNS-08')">
+                            <circle cx="420" cy="175" r="12" id="dot-SNS-08" fill="#2e7d32" stroke="#fff" stroke-width="2"/>
+                            <text x="420" y="179" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">S8</text>
+                        </g>
+
+                        <!-- Legenda warna -->
+                        <rect x="10" y="330" width="580" height="42" rx="6" fill="rgba(255,255,255,0.7)"/>
+                        <circle cx="30" cy="351" r="6" fill="#2e7d32"/>
+                        <text x="40" y="355" font-size="9" fill="#333">Normal</text>
+                        <circle cx="100" cy="351" r="6" fill="#f57c00"/>
+                        <text x="110" y="355" font-size="9" fill="#333">Rendah</text>
+                        <circle cx="170" cy="351" r="6" fill="#1565c0"/>
+                        <text x="180" y="355" font-size="9" fill="#333">Tinggi</text>
+                        <circle cx="240" cy="351" r="6" fill="#c62828"/>
+                        <text x="250" y="355" font-size="9" fill="#333">Kritis</text>
+                        <line x1="330" y1="351" x2="370" y2="351" stroke="#1565c0" stroke-width="3" stroke-dasharray="5,3"/>
+                        <text x="375" y="355" font-size="9" fill="#333">Saluran Air</text>
+                        <rect x="460" y="345" width="14" height="10" rx="2" fill="rgba(76,175,80,0.4)" stroke="#388e3c" stroke-width="1"/>
+                        <text x="478" y="355" font-size="9" fill="#333">Area Sawah</text>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- PANEL DETAIL SENSOR -->
+            <div class="lg:w-72">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="px-4 py-3 text-white text-sm font-semibold" style="background-color:#2e7d32;">
+                        📊 Detail Sensor
+                    </div>
+                    <div id="detail-sensor" class="p-4">
+                        <p class="text-gray-400 text-sm text-center py-6">Klik titik sensor pada peta untuk melihat detail</p>
+                    </div>
+                </div>
+
+                <!-- DAFTAR SEMUA SENSOR -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden mt-4">
+                    <div class="px-4 py-3 text-white text-sm font-semibold" style="background-color:#2e7d32;">
+                        🔴 Daftar Sensor Aktif
+                    </div>
+                    <div id="daftar-sensor" class="p-2 max-h-64 overflow-y-auto">
+                        <!-- Diisi oleh JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center text-xs py-3 text-green-100 mt-4" style="background-color:#1b5e20;">
+        © 2026 SM Irigasi — Universitas Sebelas Maret · Sistem Monitoring Irigasi Sawah
+    </footer>
+
+    <script>
+        var dataSensor = [
+            { id:"SNS-01", lokasi:"Saluran Induk Ngidul", debit:12.4, tma:42, suhu:26.8, lembap:68, status:"normal" },
+            { id:"SNS-02", lokasi:"Percabangan Blok A", debit:8.7,  tma:35, suhu:27.1, lembap:72, status:"normal" },
+            { id:"SNS-03", lokasi:"Saluran Blok B", debit:3.2,  tma:18, suhu:28.3, lembap:45, status:"rendah" },
+            { id:"SNS-04", lokasi:"Bak Penampungan C", debit:18.9, tma:71, suhu:26.2, lembap:80, status:"tinggi" },
+            { id:"SNS-05", lokasi:"Saluran Ngalor D", debit:6.5,  tma:28, suhu:27.8, lembap:63, status:"normal" },
+            { id:"SNS-06", lokasi:"Saluran Ngetan E", debit:1.1,  tma:10, suhu:29.0, lembap:31, status:"kritis" },
+            { id:"SNS-07", lokasi:"Saluran Petak 12", debit:9.3,  tma:38, suhu:26.5, lembap:70, status:"normal" },
+            { id:"SNS-08", lokasi:"Embung Ngulon", debit:7.8,  tma:32, suhu:27.4, lembap:66, status:"normal" }
+        ];
+
+        var warnaStatus = { normal:"#2e7d32", rendah:"#f57c00", tinggi:"#1565c0", kritis:"#c62828" };
+        var labelStatus = { normal:"Normal", rendah:"Rendah", tinggi:"Tinggi", kritis:"Kritis !" };
+
+        function updateWaktu() {
+            var n = new Date();
+            document.getElementById('waktu-peta').textContent =
+                String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
+        }
+
+        function renderDaftar() {
+            var html = '';
+            var cnt = {normal:0, rendah:0, tinggi:0, kritis:0};
+            dataSensor.forEach(function(s) {
+                cnt[s.status] = (cnt[s.status]||0)+1;
+                html += '<div onclick="pilihSensor(\''+s.id+'\')" class="flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer hover:bg-green-50 transition">';
+                html += '<span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:'+warnaStatus[s.status]+'"></span>';
+                html += '<span class="text-xs font-medium text-gray-700 flex-1">'+s.id+' — '+s.lokasi+'</span>';
+                html += '<span class="text-xs px-1.5 py-0.5 rounded font-bold text-white" style="background:'+warnaStatus[s.status]+'">'+labelStatus[s.status]+'</span>';
+                html += '</div>';
+            });
+            document.getElementById('daftar-sensor').innerHTML = html;
+            document.getElementById('cnt-normal').textContent = cnt.normal||0;
+            document.getElementById('cnt-rendah').textContent = cnt.rendah||0;
+            document.getElementById('cnt-tinggi').textContent = cnt.tinggi||0;
+            document.getElementById('cnt-kritis').textContent = cnt.kritis||0;
+        }
+
+        function pilihSensor(id) {
+            var s = dataSensor.find(function(x){ return x.id === id; });
+            if (!s) return;
+            var warna = warnaStatus[s.status];
+            var html = '<div class="text-center mb-3">';
+            html += '<p class="font-bold text-lg" style="color:'+warna+'">'+s.id+'</p>';
+            html += '<p class="text-sm text-gray-600">'+s.lokasi+'</p>';
+            html += '<span class="inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold text-white" style="background:'+warna+'">'+labelStatus[s.status]+'</span>';
+            html += '</div>';
+            html += '<div class="grid grid-cols-2 gap-2 text-sm">';
+            html += metrik('💧 Debit', s.debit.toFixed(1)+' m³/s', '#e3f2fd');
+            html += metrik('📏 TMA', s.tma+' cm', '#e8f5e9');
+            html += metrik('🌡️ Suhu', s.suhu.toFixed(1)+'°C', '#fff3e0');
+            html += metrik('💦 Lembap', s.lembap+'%', '#f3e5f5');
+            html += '</div>';
+            document.getElementById('detail-sensor').innerHTML = html;
+
+            // Highlight dot yang dipilih
+            dataSensor.forEach(function(x) {
+                var dot = document.getElementById('dot-'+x.id);
+                if (dot) dot.setAttribute('stroke-width', x.id===id ? '4' : '2');
+            });
+        }
+
+        function metrik(label, nilai, bg) {
+            return '<div class="rounded-lg p-2 text-center" style="background:'+bg+'"><p class="text-xs text-gray-500">'+label+'</p><p class="font-bold text-gray-800">'+nilai+'</p></div>';
+        }
+
+        function simulasiUpdate() {
+            dataSensor.forEach(function(s) {
+                s.debit  = Math.max(0.5, s.debit + (Math.random()-0.5));
+                s.tma    = Math.max(5, s.tma + Math.round((Math.random()-0.5)*3));
+                s.lembap = Math.min(100, Math.max(10, s.lembap + Math.round((Math.random()-0.5)*2)));
+                if      (s.tma < 15) s.status='kritis';
+                else if (s.tma < 25) s.status='rendah';
+                else if (s.tma > 65) s.status='tinggi';
+                else                  s.status='normal';
+                var dot = document.getElementById('dot-'+s.id);
+                if (dot) dot.setAttribute('fill', warnaStatus[s.status]);
+            });
+            renderDaftar();
+        }
+
+        renderDaftar();
+        setInterval(simulasiUpdate, 4000);
+        setInterval(updateWaktu, 1000);
+        updateWaktu();
+    </script>
+</body>
+</html>
